@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>TapCo — SoftPOS + Wallet MVP</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0A0A0F; --s1:#13131A; --s2:#1C1C26; --s3:#22222E;
+  --b1:rgba(255,255,255,0.07); --b2:rgba(255,255,255,0.12); --b3:rgba(255,255,255,0.18);
+  --acc:#00E5A0; --acc-d:rgba(0,229,160,0.12); --acc-g:rgba(0,229,160,0.22);
+  --warn:#FFB547; --danger:#FF5B5B; --info:#5B9BFF;
+  --t1:#F0F0F5; --t2:#8888A0; --t3:#5A5A6E;
+  --font:'DM Sans',sans-serif; --mono:'DM Mono',monospace;
+  --r:14px; --r2:20px; --r3:28px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--bg);font-family:var(--font);color:var(--t1);overscroll-behavior:none;}
+
+.app{max-width:420px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative;overflow:hidden;}
+
+/* SCREENS */
+.scr{display:none;flex-direction:column;flex:1;overflow-y:auto;animation:fi .2s ease;}
+.scr.active{display:flex;}
+@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* TOPBAR */
+.topbar{padding:20px 20px 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.brand{display:flex;align-items:center;gap:8px;}
+.brand-dot{width:8px;height:8px;border-radius:50%;background:var(--acc);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.75)}}
+.brand-name{font-size:17px;font-weight:600;letter-spacing:-.3px;}
+.sandbox-pill{font-size:10px;font-family:var(--mono);background:rgba(255,181,71,.1);color:var(--warn);padding:4px 10px;border-radius:20px;border:1px solid rgba(255,181,71,.2);}
+
+/* BOTTOM NAV */
+.bnav{display:flex;padding:8px 12px 24px;background:var(--bg);border-top:1px solid var(--b1);gap:2px;flex-shrink:0;}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 4px;border-radius:12px;cursor:pointer;border:none;background:none;color:var(--t3);font-family:var(--font);transition:all .15s;}
+.nb.active{color:var(--acc);background:var(--acc-d);}
+.nb:hover:not(.active){background:var(--s1);color:var(--t2);}
+.nb-icon{font-size:19px;line-height:1;}
+.nb-lbl{font-size:10px;font-weight:500;}
+
+/* CARDS / SURFACES */
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r2);padding:14px 16px;}
+.surface{background:var(--s2);border-radius:var(--r);padding:11px 13px;}
+
+/* BADGES */
+.badge{display:inline-block;font-size:10px;font-weight:500;padding:3px 8px;border-radius:20px;}
+.bg{background:#EAF3DE20;color:#5DCAA5;border:1px solid #5DCAA520;}
+.ba{background:#FAEEDA20;color:#EF9F27;border:1px solid #EF9F2720;}
+.br{background:#FCEBEB20;color:#FF5B5B;border:1px solid #FF5B5B20;}
+.bb{background:#E6F1FB20;color:#5B9BFF;border:1px solid #5B9BFF20;}
+.bp{background:#EEEDFE20;color:#AFA9EC;border:1px solid #AFA9EC20;}
+
+/* BUTTONS */
+.btn{margin:8px 16px;background:var(--acc);color:#0A0A0F;border:none;border-radius:var(--r3);padding:17px;font-size:15px;font-weight:600;cursor:pointer;font-family:var(--font);transition:all .15s;width:calc(100% - 32px);}
+.btn:disabled{background:var(--s2);color:var(--t3);cursor:default;}
+.btn:not(:disabled):active{transform:scale(.98);}
+.btn.ghost{background:none;border:1px solid var(--b2);color:var(--t2);font-weight:400;}
+.btn.ghost:hover{background:var(--s1);color:var(--t1);}
+.btn.danger{background:rgba(255,91,91,.15);color:var(--danger);border:1px solid rgba(255,91,91,.2);}
+
+/* KEYPAD */
+.keypad{padding:0 16px 4px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;flex-shrink:0;}
+.key{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:17px 8px;font-size:21px;font-weight:400;color:var(--t1);cursor:pointer;transition:all .1s;font-family:var(--font);text-align:center;display:flex;align-items:center;justify-content:center;}
+.key:active{background:var(--s2);transform:scale(.95);}
+.key.sm{font-size:13px;color:var(--t2);font-family:var(--mono);}
+
+/* AMOUNT */
+.amt-zone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;gap:4px;}
+.amt-lbl{font-size:11px;color:var(--t3);letter-spacing:.08em;text-transform:uppercase;}
+.amt-row{display:flex;align-items:flex-start;gap:5px;line-height:1;}
+.amt-cur{font-size:22px;font-weight:300;color:var(--t2);margin-top:10px;}
+.amt-num{font-size:58px;font-weight:300;font-family:var(--mono);letter-spacing:-2px;color:var(--t1);transition:color .15s;min-width:1ch;}
+.amt-num.has{color:var(--acc);}
+.amt-desc{font-size:12px;color:var(--t3);margin-top:6px;cursor:pointer;border-bottom:1px dashed var(--t3);padding-bottom:1px;}
+
+/* NFC RADAR */
+.nfc-zone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:18px;}
+.nfc-chip-badge{background:var(--s2);border:1px solid var(--b2);border-radius:var(--r2);padding:10px 26px;font-size:30px;font-weight:300;font-family:var(--mono);color:var(--acc);letter-spacing:-1px;}
+.radar{position:relative;width:130px;height:130px;display:flex;align-items:center;justify-content:center;}
+.ring{position:absolute;border-radius:50%;border:1.5px solid var(--acc);opacity:0;animation:rad 2.4s ease-out infinite;}
+.ring:nth-child(1){width:46px;height:46px;animation-delay:0s;}
+.ring:nth-child(2){width:80px;height:80px;animation-delay:.6s;}
+.ring:nth-child(3){width:114px;height:114px;animation-delay:1.2s;}
+.ring:nth-child(4){width:148px;height:148px;animation-delay:1.8s;}
+@keyframes rad{0%{opacity:.8;transform:scale(.65)}100%{opacity:0;transform:scale(1)}}
+.nfc-card-icon{width:52px;height:36px;background:var(--s2);border:1.5px solid var(--b2);border-radius:8px;position:relative;z-index:2;display:flex;align-items:center;}
+.chip-sq{width:18px;height:14px;background:#C4A44A;border-radius:3px;margin-left:9px;}
+.nfc-inst{text-align:center;}
+.nfc-inst strong{display:block;font-size:16px;font-weight:500;margin-bottom:4px;}
+.nfc-inst span{font-size:12px;color:var(--t2);line-height:1.5;}
+
+/* PROCESSING */
+.proc-zone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:28px;}
+.spinner{width:52px;height:52px;border:2px solid var(--s2);border-top-color:var(--acc);border-radius:50%;animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.proc-steps{width:100%;display:flex;flex-direction:column;gap:6px;}
+.ps{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--t3);padding:8px 12px;background:var(--s1);border-radius:10px;border:1px solid var(--b1);transition:all .3s;font-family:var(--mono);}
+.ps.done{color:var(--acc);border-color:rgba(0,229,160,.2);background:rgba(0,229,160,.04);}
+.ps.act{color:var(--t2);border-color:var(--b2);}
+.ps-dot{width:6px;height:6px;border-radius:50%;background:var(--t3);flex-shrink:0;}
+.ps.done .ps-dot{background:var(--acc);}
+.ps.act .ps-dot{background:var(--warn);animation:pulse 1s infinite;}
+.mock-tag{font-size:10px;font-family:var(--mono);color:var(--warn);background:rgba(255,181,71,.08);padding:2px 6px;border-radius:4px;margin-left:auto;flex-shrink:0;}
+
+/* RESULT */
+.res-zone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:22px;gap:13px;}
+.check-c{width:68px;height:68px;border-radius:50%;background:rgba(0,229,160,.1);border:1.5px solid var(--acc);display:flex;align-items:center;justify-content:center;animation:pop .4s cubic-bezier(.34,1.56,.64,1);}
+@keyframes pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+.receipt{width:100%;background:var(--s1);border:1px solid var(--b1);border-radius:var(--r2);overflow:hidden;}
+.rr{display:flex;justify-content:space-between;align-items:center;padding:9px 15px;border-bottom:1px solid var(--b1);font-size:13px;}
+.rr:last-child{border-bottom:none;}
+.rk{color:var(--t2);}
+.rv{font-family:var(--mono);font-size:12px;color:var(--t1);}
+.rv.acc{color:var(--acc);}
+.mock-banner{background:rgba(255,181,71,.07);border:1px solid rgba(255,181,71,.2);border-radius:var(--r);padding:10px 13px;width:100%;font-size:11px;color:var(--warn);font-family:var(--mono);}
+
+/* ── WALLET SCREEN ── */
+.wallet-hero{margin:16px 16px 0;background:linear-gradient(135deg,#0F2A1E 0%,#0A1A14 100%);border:1px solid rgba(0,229,160,.2);border-radius:var(--r2);padding:20px;position:relative;overflow:hidden;}
+.wh-label{font-size:11px;color:rgba(0,229,160,.6);letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;}
+.wh-balance{font-size:42px;font-weight:300;font-family:var(--mono);color:var(--acc);letter-spacing:-2px;line-height:1;}
+.wh-sub{font-size:12px;color:rgba(255,255,255,.4);margin-top:4px;}
+.wh-deco{position:absolute;right:-20px;top:-20px;width:120px;height:120px;border-radius:50%;border:1px solid rgba(0,229,160,.08);}
+.wh-deco2{position:absolute;right:-40px;top:-40px;width:160px;height:160px;border-radius:50%;border:1px solid rgba(0,229,160,.04);}
+.wallet-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px 16px 0;}
+.wa{display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;padding:10px 4px;border-radius:var(--r);border:1px solid var(--b1);background:var(--s1);transition:all .15s;}
+.wa:hover{background:var(--s2);}
+.wa-icon{width:34px;height:34px;border-radius:10px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:16px;}
+.wa-lbl{font-size:10px;color:var(--t2);text-align:center;line-height:1.2;}
+
+.sec-title{font-size:12px;font-weight:500;color:var(--t2);letter-spacing:.05em;text-transform:uppercase;padding:14px 16px 6px;}
+.txn-row{display:flex;align-items:center;gap:11px;padding:10px 16px;border-bottom:1px solid var(--b1);}
+.txn-row:last-child{border-bottom:none;}
+.txn-ico{width:36px;height:36px;border-radius:11px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.txn-inf{flex:1;}
+.txn-nm{font-size:13px;font-weight:500;}
+.txn-mt{font-size:11px;color:var(--t2);font-family:var(--mono);margin-top:1px;}
+.txn-am{font-size:14px;font-weight:500;font-family:var(--mono);}
+.txn-am.pos{color:var(--acc);}
+.txn-am.neg{color:var(--t1);}
+
+/* ── VIRTUAL CARD ── */
+.card-screen-wrap{padding:16px 16px 0;}
+.vcard{width:100%;aspect-ratio:1.586;border-radius:20px;background:linear-gradient(135deg,#0D2B1F 0%,#061A10 60%,#0A1F15 100%);border:1px solid rgba(0,229,160,.25);padding:20px;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;}
+.vc-deco1{position:absolute;right:-30px;top:-30px;width:160px;height:160px;border-radius:50%;border:1px solid rgba(0,229,160,.06);}
+.vc-deco2{position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;border:1px solid rgba(0,229,160,.03);}
+.vc-top{display:flex;justify-content:space-between;align-items:flex-start;}
+.vc-brand{font-size:16px;font-weight:600;color:var(--acc);letter-spacing:-.3px;}
+.vc-type{font-size:10px;color:rgba(0,229,160,.5);font-family:var(--mono);}
+.vc-chip{width:32px;height:25px;background:linear-gradient(135deg,#C4A44A,#E8C86A);border-radius:4px;}
+.vc-mid{display:flex;flex-direction:column;gap:4px;}
+.vc-num{font-size:15px;font-family:var(--mono);letter-spacing:2px;color:rgba(255,255,255,.8);}
+.vc-bot{display:flex;justify-content:space-between;align-items:flex-end;}
+.vc-holder{font-size:12px;font-family:var(--mono);color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:1px;}
+.vc-exp-wrap{text-align:right;}
+.vc-exp-lbl{font-size:9px;color:rgba(255,255,255,.4);}
+.vc-exp{font-size:12px;font-family:var(--mono);color:rgba(255,255,255,.7);}
+.vc-network{font-size:22px;position:absolute;bottom:18px;right:18px;opacity:.5;}
+
+.card-details{padding:12px 16px 0;display:flex;flex-direction:column;gap:6px;}
+.cd-row{display:flex;justify-content:space-between;align-items:center;padding:9px 13px;background:var(--s1);border-radius:var(--r);border:1px solid var(--b1);}
+.cd-k{font-size:12px;color:var(--t2);}
+.cd-v{font-size:12px;font-family:var(--mono);color:var(--t1);}
+.cd-v.acc{color:var(--acc);}
+
+.card-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 16px 0;}
+.ca-btn{display:flex;align-items:center;justify-content:center;gap:7px;background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:12px;font-size:12px;font-weight:500;color:var(--t1);cursor:pointer;transition:all .15s;}
+.ca-btn:hover{background:var(--s2);}
+
+.physical-banner{margin:10px 16px 0;background:rgba(0,229,160,.05);border:1px solid rgba(0,229,160,.15);border-radius:var(--r);padding:12px 14px;display:flex;gap:10px;align-items:flex-start;}
+.pb-icon{font-size:20px;flex-shrink:0;}
+.pb-title{font-size:12px;font-weight:500;color:var(--acc);margin-bottom:2px;}
+.pb-sub{font-size:11px;color:var(--t2);line-height:1.4;}
+
+/* TRANSFER MODAL (inline) */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:flex-end;justify-content:center;}
+.modal-bg.open{display:flex;}
+.modal{background:var(--s1);border-radius:24px 24px 0 0;padding:20px 16px 32px;width:100%;max-width:420px;animation:slideUp .25s ease;}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-handle{width:36px;height:4px;background:var(--b2);border-radius:2px;margin:0 auto 16px;}
+.modal-title{font-size:16px;font-weight:500;margin-bottom:14px;}
+.input-field{width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:var(--r);padding:12px 14px;font-size:15px;color:var(--t1);font-family:var(--font);outline:none;margin-bottom:10px;}
+.input-field::placeholder{color:var(--t3);}
+.input-field:focus{border-color:var(--acc);}
+.contact-row{display:flex;align-items:center;gap:10px;padding:10px;border-radius:var(--r);cursor:pointer;transition:background .1s;}
+.contact-row:hover{background:var(--s2);}
+.contact-av{width:36px;height:36px;border-radius:50%;background:var(--s2);border:1px solid var(--b1);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;flex-shrink:0;}
+.contact-nm{font-size:13px;font-weight:500;}
+.contact-id{font-size:11px;color:var(--t2);font-family:var(--mono);}
+
+/* HISTORY */
+.hist-header{padding:20px 20px 8px;flex-shrink:0;}
+.hist-title{font-size:22px;font-weight:500;margin-bottom:3px;}
+.hist-sub{font-size:12px;color:var(--t2);}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 16px 8px;flex-shrink:0;}
+.metric{background:var(--s1);border:1px solid var(--b1);border-radius:var(--r);padding:13px;}
+.metric-lbl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;}
+.metric-val{font-size:20px;font-weight:300;font-family:var(--mono);color:var(--acc);}
+.metric-sub{font-size:10px;color:var(--t2);margin-top:2px;}
+.empty-state{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--t3);font-size:14px;padding:40px;text-align:center;}
+
+/* DEMO CONTROLS */
+.demo-bar{margin:0 16px 10px;background:rgba(255,181,71,.06);border:1px solid rgba(255,181,71,.15);border-radius:var(--r);padding:10px 13px;}
+.demo-title{font-size:11px;font-weight:600;color:var(--warn);font-family:var(--mono);margin-bottom:6px;}
+.demo-btns{display:flex;gap:6px;flex-wrap:wrap;}
+.demo-btn{font-size:11px;background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:5px 10px;color:var(--t2);cursor:pointer;font-family:var(--mono);transition:all .1s;}
+.demo-btn:hover{background:var(--s3);color:var(--t1);}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ═══════════ SCREEN: COBRAR ═══════════ -->
+<div class="scr active" id="s-cobrar">
+  <div class="topbar">
+    <div class="brand"><div class="brand-dot"></div><span class="brand-name">TapCo</span></div>
+    <span class="sandbox-pill">SANDBOX</span>
+  </div>
+  <div class="amt-zone">
+    <div class="amt-lbl">monto a cobrar</div>
+    <div class="amt-row">
+      <span class="amt-cur">COP</span>
+      <span class="amt-num" id="disp">0</span>
+    </div>
+    <div class="amt-desc" id="desc-lbl" onclick="addDesc()">+ Agregar descripción</div>
+  </div>
+  <div class="keypad">
+    <button class="key" onclick="kp('1')">1</button><button class="key" onclick="kp('2')">2</button><button class="key" onclick="kp('3')">3</button>
+    <button class="key" onclick="kp('4')">4</button><button class="key" onclick="kp('5')">5</button><button class="key" onclick="kp('6')">6</button>
+    <button class="key" onclick="kp('7')">7</button><button class="key" onclick="kp('8')">8</button><button class="key" onclick="kp('9')">9</button>
+    <button class="key sm" onclick="kp('000')">000</button><button class="key" onclick="kp('0')">0</button><button class="key sm" onclick="kpDel()">⌫</button>
+  </div>
+  <button class="btn" id="charge-btn" onclick="goNFC()" disabled>⬡ Cobrar con tarjeta NFC</button>
+</div>
+
+<!-- ═══════════ SCREEN: NFC ═══════════ -->
+<div class="scr" id="s-nfc">
+  <div class="topbar"><div class="brand"><div class="brand-dot"></div><span class="brand-name">TapCo</span></div><span class="sandbox-pill">SANDBOX</span></div>
+  <div class="nfc-zone">
+    <div class="nfc-chip-badge" id="nfc-amt">$0</div>
+    <div class="radar">
+      <div class="ring"></div><div class="ring"></div><div class="ring"></div><div class="ring"></div>
+      <div class="nfc-card-icon"><div class="chip-sq"></div></div>
+    </div>
+    <div class="nfc-inst"><strong>Acerca la tarjeta al teléfono</strong><span>Débito, crédito, Apple Pay o Google Pay</span></div>
+    <button class="btn" onclick="startProc(true)" style="margin-top:8px;">✓ Simular toque — aprobado</button>
+    <button class="btn ghost" onclick="startProc(false)">✗ Simular toque — rechazado</button>
+    <button class="btn ghost" onclick="nav('cobrar')">Cancelar</button>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN: PROCESSING ═══════════ -->
+<div class="scr" id="s-proc">
+  <div class="proc-zone">
+    <div class="spinner"></div>
+    <div style="text-align:center;">
+      <div style="font-size:17px;font-weight:500;" id="p-title">Procesando</div>
+      <div style="font-size:13px;color:var(--t2);font-family:var(--mono);" id="p-sub">Leyendo tarjeta...</div>
+    </div>
+    <div class="proc-steps">
+      <div class="ps" id="ps1"><div class="ps-dot"></div><span>NFC: leer token EMV</span><span class="mock-tag">mock</span></div>
+      <div class="ps" id="ps2"><div class="ps-dot"></div><span>Tokenizar datos tarjeta</span><span class="mock-tag">mock</span></div>
+      <div class="ps" id="ps3"><div class="ps-dot"></div><span>Autorizar con procesador</span><span class="mock-tag">mock→Redeban</span></div>
+      <div class="ps" id="ps4"><div class="ps-dot"></div><span>Acreditar a billetera</span><span class="mock-tag">mock→SEDPE</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN: RESULT ═══════════ -->
+<div class="scr" id="s-result">
+  <div class="res-zone" id="res-zone"></div>
+</div>
+
+<!-- ═══════════ SCREEN: WALLET ═══════════ -->
+<div class="scr" id="s-wallet">
+  <div class="topbar"><div class="brand"><div class="brand-dot"></div><span class="brand-name">TapCo</span></div><span class="sandbox-pill">SANDBOX</span></div>
+
+  <div class="wallet-hero">
+    <div class="wh-deco"></div><div class="wh-deco2"></div>
+    <div>
+      <div class="wh-label">saldo disponible</div>
+      <div class="wh-balance" id="w-balance">$0</div>
+      <div class="wh-sub" id="w-sub">Cuenta TapCo · exento 4×1000</div>
+    </div>
+  </div>
+
+  <div class="wallet-actions">
+    <div class="wa" onclick="openTransfer()">
+      <div class="wa-icon">↗</div>
+      <div class="wa-lbl">Enviar</div>
+    </div>
+    <div class="wa" onclick="demoReceive()">
+      <div class="wa-icon">↙</div>
+      <div class="wa-lbl">Recibir</div>
+    </div>
+    <div class="wa" onclick="navTab('card','nb-card')">
+      <div class="wa-icon">◫</div>
+      <div class="wa-lbl">Mi tarjeta</div>
+    </div>
+    <div class="wa" onclick="demoTopup()">
+      <div class="wa-icon">＋</div>
+      <div class="wa-lbl">Recargar</div>
+    </div>
+  </div>
+
+  <div class="demo-bar" style="margin-top:12px;">
+    <div class="demo-title">// DEMO — simular movimientos</div>
+    <div class="demo-btns">
+      <button class="demo-btn" onclick="demoIncome()">+ Ingreso venta $50.000</button>
+      <button class="demo-btn" onclick="demoPago()">- Pago proveedor $30.000</button>
+      <button class="demo-btn" onclick="demoP2P()">→ P2P TapCo $15.000</button>
+    </div>
+  </div>
+
+  <div class="sec-title">Movimientos recientes</div>
+  <div id="w-txns" style="flex:1;">
+    <div class="empty-state"><span style="font-size:28px;">◎</span><span>Aquí aparecerán tus<br>cobros y pagos.</span></div>
+  </div>
+</div>
+
+<!-- ═══════════ SCREEN: CARD ═══════════ -->
+<div class="scr" id="s-card">
+  <div class="topbar"><div class="brand"><div class="brand-dot"></div><span class="brand-name">TapCo</span></div><span class="sandbox-pill">SANDBOX</span></div>
+
+  <div class="card-screen-wrap">
+    <div class="vcard">
+      <div class="vc-deco1"></div><div class="vc-deco2"></div>
+      <div class="vc-top">
+        <div><div class="vc-brand">TapCo</div><div class="vc-type">PREPAGO VIRTUAL</div></div>
+        <div class="vc-chip"></div>
+      </div>
+      <div class="vc-mid">
+        <div class="vc-num" id="vc-num">•••• •••• •••• ••••</div>
+      </div>
+      <div class="vc-bot">
+        <div class="vc-holder" id="vc-holder">NOMBRE APELLIDO</div>
+        <div class="vc-exp-wrap"><div class="vc-exp-lbl">VÁLIDA HASTA</div><div class="vc-exp" id="vc-exp">••/••</div></div>
+      </div>
+      <div class="vc-network">MC</div>
+    </div>
+  </div>
+
+  <div class="card-details">
+    <div class="cd-row"><span class="cd-k">Estado</span><span class="cd-v acc">● Activa</span></div>
+    <div class="cd-row"><span class="cd-k">Saldo disponible</span><span class="cd-v acc" id="cd-saldo">$0</span></div>
+    <div class="cd-row"><span class="cd-k">Franquicia</span><span class="cd-v">Mastercard Prepago</span></div>
+    <div class="cd-row"><span class="cd-k">Uso</span><span class="cd-v">Nacional e internacional</span></div>
+    <div class="cd-row"><span class="cd-k">Emisor (sandbox)</span><span class="cd-v">Pomelo BIN Sponsorship</span></div>
+    <div class="cd-row"><span class="cd-k">Wallet</span><span class="cd-v">Google Pay / Apple Pay</span></div>
+  </div>
+
+  <div class="card-actions">
+    <div class="ca-btn" onclick="revealCard()"><span>👁</span><span>Ver número</span></div>
+    <div class="ca-btn" onclick="freezeCard()"><span id="freeze-icon">❄</span><span id="freeze-lbl">Congelar</span></div>
+    <div class="ca-btn" onclick="alert('Límites configurables en producción')"><span>⚙</span><span>Límites</span></div>
+    <div class="ca-btn" onclick="navTab('cobrar','nb-cobrar')"><span>⬡</span><span>Cobrar</span></div>
+  </div>
+
+  <div class="physical-banner">
+    <div class="pb-icon">📦</div>
+    <div>
+      <div class="pb-title">Solicitar tarjeta física</div>
+      <div class="pb-sub">Tarjeta Mastercard embosada. Envío en ~10 días. Powered by Pomelo — integración API disponible en producción.</div>
+    </div>
+  </div>
+  <div style="height:16px;"></div>
+</div>
+
+<!-- ═══════════ SCREEN: HISTORIAL ═══════════ -->
+<div class="scr" id="s-hist">
+  <div class="hist-header">
+    <div class="hist-title">Transacciones</div>
+    <div class="hist-sub" id="hist-sub">Sesión sandbox</div>
+  </div>
+  <div class="metrics">
+    <div class="metric"><div class="metric-lbl">Total cobrado</div><div class="metric-val" id="m-total">$0</div><div class="metric-sub" id="m-cnt">0 cobros</div></div>
+    <div class="metric"><div class="metric-lbl">Ticket promedio</div><div class="metric-val" id="m-avg">—</div><div class="metric-sub">COP</div></div>
+  </div>
+  <div id="hist-list" style="flex:1;">
+    <div class="empty-state"><span style="font-size:28px;">◎</span><span>Sin transacciones aún.</span></div>
+  </div>
+</div>
+
+<!-- ═══════════ BOTTOM NAV ═══════════ -->
+<nav class="bnav">
+  <button class="nb active" id="nb-cobrar" onclick="navTab('cobrar','nb-cobrar')"><span class="nb-icon">⬡</span><span class="nb-lbl">Cobrar</span></button>
+  <button class="nb" id="nb-wallet" onclick="navTab('wallet','nb-wallet');refreshWallet()"><span class="nb-icon">◈</span><span class="nb-lbl">Billetera</span></button>
+  <button class="nb" id="nb-card" onclick="navTab('card','nb-card');refreshCard()"><span class="nb-icon">◫</span><span class="nb-lbl">Tarjeta</span></button>
+  <button class="nb" id="nb-hist" onclick="navTab('hist','nb-hist');renderHist()"><span class="nb-icon">≡</span><span class="nb-lbl">Historial</span></button>
+</nav>
+
+<!-- ═══════════ TRANSFER MODAL ═══════════ -->
+<div class="modal-bg" id="modal-transfer" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Enviar dinero</div>
+    <input class="input-field" id="tf-amount" type="number" placeholder="Monto COP">
+    <input class="input-field" id="tf-dest" placeholder="Teléfono, email o @tapco">
+    <div style="font-size:11px;color:var(--t3);margin-bottom:10px;font-family:var(--mono);">Contactos TapCo (on-us, gratis, instantáneo)</div>
+    <div class="contact-row" onclick="selectContact('Pedro Gómez','@pedrog')">
+      <div class="contact-av" style="background:#0F2A1E;color:#5DCAA5;">PG</div>
+      <div><div class="contact-nm">Pedro Gómez</div><div class="contact-id">@pedrog · TapCo</div></div>
+    </div>
+    <div class="contact-row" onclick="selectContact('Laura Martínez','@lauram')">
+      <div class="contact-av" style="background:#1A1A2E;color:#AFA9EC;">LM</div>
+      <div><div class="contact-nm">Laura Martínez</div><div class="contact-id">@lauram · TapCo</div></div>
+    </div>
+    <div class="contact-row" onclick="selectContact('Banco externo','Nequi/Daviplata')">
+      <div class="contact-av" style="background:#1A1010;color:#FF9B9B;">BE</div>
+      <div><div class="contact-nm">Banco externo</div><div class="contact-id">Bre-B · máx. 20 seg</div></div>
+    </div>
+    <button class="btn" onclick="doTransfer()" style="margin:14px 0 0;">Confirmar envío</button>
+    <button class="btn ghost" onclick="closeModal()">Cancelar</button>
+  </div>
+</div>
+
+<script>
+// ── STATE ──────────────────────────────
+const S = {
+  raw: '', desc: '', approved: true,
+  balance: 0, cardRevealed: false, cardFrozen: false,
+  cobros: [], movements: [],
+  cardNum: '4821 3390 7701 9512',
+  cardExp: '03/28', cardHolder: 'COMERCIO TAPCO'
+};
+
+// ── HELPERS ───────────────────────────
+const fmt = n => new Intl.NumberFormat('es-CO').format(Math.round(n));
+const getAmt = () => parseInt(S.raw || '0', 10);
+const $ = id => document.getElementById(id);
+const screens = ['cobrar','nfc','proc','result','wallet','card','hist'];
+
+function showScr(id) {
+  screens.forEach(s => { const el = $('s-'+s); if(el) el.classList.remove('active'); });
+  const t = $('s-'+id); if(t) t.classList.add('active');
+}
+
+function navTab(scrId, nbId) {
+  showScr(scrId);
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('active'));
+  const nb = $(nbId); if(nb) nb.classList.add('active');
+}
+
+function nav(scrId) { showScr(scrId); }
+
+// ── KEYPAD ────────────────────────────
+function kp(k) {
+  if (S.raw.length >= 10) return;
+  S.raw += k;
+  if (parseInt(S.raw,10) > 9999999999) S.raw = S.raw.slice(0,-k.length);
+  updateDisp();
+}
+function kpDel() { S.raw = S.raw.slice(0,-1); updateDisp(); }
+function updateDisp() {
+  const v = getAmt();
+  const el = $('disp'); el.textContent = fmt(v); el.classList.toggle('has', v > 0);
+  $('charge-btn').disabled = v < 1000;
+}
+function addDesc() {
+  const d = prompt('Descripción (opcional):');
+  if (d !== null) { S.desc = d; $('desc-lbl').textContent = d || '+ Agregar descripción'; }
+}
+
+// ── NFC FLOW ──────────────────────────
+function goNFC() {
+  $('nfc-amt').textContent = '$' + fmt(getAmt());
+  showScr('nfc');
+}
+
+function startProc(approved) {
+  S.approved = approved;
+  showScr('proc');
+  const steps = ['ps1','ps2','ps3','ps4'];
+  const subs = ['Leyendo tarjeta NFC...','Tokenizando datos EMV...','Autorizando con procesador...','Acreditando a billetera...'];
+  steps.forEach(s => $('p-'+s.replace('ps','')) && null, $('ps1').className = $('ps2').className = $('ps3').className = $('ps4').className = 'ps');
+  let i = 0;
+  function next() {
+    if (i < steps.length) {
+      if (i > 0) $(steps[i-1]).className = 'ps done';
+      $(steps[i]).className = 'ps act';
+      $('p-sub').textContent = subs[i]; i++;
+      setTimeout(next, i === 3 ? 900 : 600);
+    } else {
+      $(steps[steps.length-1]).className = 'ps done';
+      setTimeout(() => showResult(S.approved), 350);
+    }
+  }
+  next();
+}
+
+function showResult(ok) {
+  const amt = getAmt();
+  const auth = Math.random().toString(36).substr(2,8).toUpperCase();
+  const now = new Date();
+  const ts = now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const ds = now.toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const cards = ['•••• 4821 (Visa Débito)','•••• 3390 (MC Crédito)','•••• 7701 (Amex)','•••• 9512 (Visa)','•••• 0044 (MC Débito)'];
+  const card = cards[Math.floor(Math.random()*cards.length)];
+
+  if (ok) {
+    S.balance += amt;
+    S.cobros.unshift({amt, auth, ts, ds, card, desc: S.desc, ok: true});
+    S.movements.unshift({type:'in', label:'Cobro con tarjeta', sub: card + ' · ' + ts, amt, icon:'⬡'});
+  }
+
+  const zone = $('res-zone');
+  if (ok) {
+    zone.innerHTML = `
+      <div class="check-c"><svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M7 16L13 22L25 10" stroke="#00E5A0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div style="font-size:21px;font-weight:500;">Pago aprobado</div>
+      <div style="font-size:42px;font-weight:300;font-family:var(--mono);color:var(--acc);letter-spacing:-2px;">$${fmt(amt)}</div>
+      <div class="receipt">
+        <div class="rr"><span class="rk">Tarjeta</span><span class="rv">${card}</span></div>
+        <div class="rr"><span class="rk">Auth</span><span class="rv acc">${auth}</span></div>
+        <div class="rr"><span class="rk">Hora</span><span class="rv">${ds} ${ts}</span></div>
+        <div class="rr" style="background:rgba(0,229,160,.04);"><span class="rk" style="color:var(--acc);">→ Billetera TapCo</span><span class="rv acc">+$${fmt(amt)}</span></div>
+        ${S.desc ? `<div class="rr"><span class="rk">Descripción</span><span class="rv">${S.desc}</span></div>` : ''}
+      </div>
+      <div class="mock-banner">⚠ SANDBOX · transacción simulada — no se procesó dinero real</div>
+      <div style="width:100%;display:flex;flex-direction:column;gap:8px;">
+        <button class="btn" onclick="newCharge()">Nuevo cobro</button>
+        <button class="btn ghost" onclick="navTab('wallet','nb-wallet');refreshWallet()">Ver billetera →</button>
+      </div>`;
+  } else {
+    zone.innerHTML = `
+      <div class="check-c" style="background:rgba(255,91,91,.1);border-color:var(--danger);"><svg width="32" height="32" viewBox="0 0 32 32" fill="none"><path d="M10 10L22 22M22 10L10 22" stroke="#FF5B5B" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+      <div style="font-size:21px;font-weight:500;color:var(--danger);">Pago rechazado</div>
+      <div style="font-size:36px;font-weight:300;font-family:var(--mono);color:var(--danger);">$${fmt(amt)}</div>
+      <div class="receipt">
+        <div class="rr"><span class="rk">Código</span><span class="rv" style="color:var(--danger);">05 — DO NOT HONOR</span></div>
+        <div class="rr"><span class="rk">Motivo</span><span class="rv">Fondos insuficientes (mock)</span></div>
+        <div class="rr"><span class="rk">Tarjeta</span><span class="rv">${card}</span></div>
+      </div>
+      <div class="mock-banner">⚠ SANDBOX · rechazo simulado por el mock processor</div>
+      <div style="width:100%;display:flex;flex-direction:column;gap:8px;">
+        <button class="btn" onclick="showScr('nfc')">Intentar de nuevo</button>
+        <button class="btn ghost" onclick="newCharge()">Nuevo cobro</button>
+      </div>`;
+  }
+  showScr('result');
+}
+
+function newCharge() {
+  S.raw = ''; S.desc = '';
+  $('desc-lbl').textContent = '+ Agregar descripción';
+  updateDisp(); navTab('cobrar','nb-cobrar');
+}
+
+// ── WALLET ────────────────────────────
+function refreshWallet() {
+  $('w-balance').textContent = '$' + fmt(S.balance);
+  $('w-sub').textContent = `Cuenta TapCo · ${S.movements.length} mov. · exento 4×1000`;
+  const icons = ['⬡','◈','◫','↗','↙'];
+  const list = $('w-txns');
+  if (!S.movements.length) {
+    list.innerHTML = '<div class="empty-state"><span style="font-size:28px;">◎</span><span>Aquí aparecerán tus<br>cobros y pagos.</span></div>';
+    return;
+  }
+  list.innerHTML = S.movements.slice(0,8).map((m,i) => `
+    <div class="txn-row">
+      <div class="txn-ico">${m.icon || icons[i%icons.length]}</div>
+      <div class="txn-inf"><div class="txn-nm">${m.label}</div><div class="txn-mt">${m.sub}</div></div>
+      <div class="txn-am ${m.type==='in'?'pos':'neg'}">${m.type==='in'?'+':'-'}$${fmt(m.amt)}</div>
+    </div>`).join('');
+}
+
+function demoIncome() {
+  const amt = 50000;
+  S.balance += amt;
+  S.movements.unshift({type:'in',label:'Cobro con tarjeta',sub:'•••• 8812 (Visa) · sandbox',amt,icon:'⬡'});
+  S.cobros.unshift({amt, auth: 'DEMO'+Date.now().toString(36).slice(-4).toUpperCase(), ts: new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}), ds: new Date().toLocaleDateString('es-CO'), card:'•••• 8812 (Visa)', ok:true});
+  refreshWallet();
+}
+function demoPago() {
+  if (S.balance < 30000) { alert('Saldo insuficiente para demo'); return; }
+  S.balance -= 30000;
+  S.movements.unshift({type:'out',label:'Pago proveedor',sub:'Proveedor demo · Bre-B',amt:30000,icon:'↗'});
+  refreshWallet();
+}
+function demoP2P() {
+  if (S.balance < 15000) { alert('Saldo insuficiente para demo'); return; }
+  S.balance -= 15000;
+  S.movements.unshift({type:'out',label:'Envío P2P TapCo',sub:'@pedrog · on-us · gratis',amt:15000,icon:'→'});
+  refreshWallet();
+}
+function demoReceive() {
+  S.balance += 20000;
+  S.movements.unshift({type:'in',label:'Transferencia recibida',sub:'@lauram · TapCo · on-us',amt:20000,icon:'↙'});
+  refreshWallet();
+}
+function demoTopup() {
+  S.balance += 100000;
+  S.movements.unshift({type:'in',label:'Recarga PSE',sub:'Bancolombia · PSE',amt:100000,icon:'＋'});
+  refreshWallet();
+}
+
+// ── TRANSFER MODAL ────────────────────
+function openTransfer() { $('modal-transfer').classList.add('open'); }
+function closeModal(e) {
+  if (!e || e.target === $('modal-transfer')) $('modal-transfer').classList.remove('open');
+}
+function selectContact(name, id) {
+  $('tf-dest').value = id;
+}
+function doTransfer() {
+  const amt = parseInt($('tf-amount').value || '0');
+  const dest = $('tf-dest').value;
+  if (!amt || amt < 1000) { alert('Ingresa un monto válido (mín. $1.000)'); return; }
+  if (!dest) { alert('Ingresa un destinatario'); return; }
+  if (amt > S.balance) { alert('Saldo insuficiente'); return; }
+  S.balance -= amt;
+  S.movements.unshift({type:'out',label:'Envío a ' + dest,sub:'TapCo P2P · on-us · gratis',amt,icon:'↗'});
+  $('modal-transfer').classList.remove('open');
+  $('tf-amount').value = ''; $('tf-dest').value = '';
+  refreshWallet();
+  alert(`✓ $${fmt(amt)} enviados a ${dest} (mock)`);
+}
+
+// ── CARD ──────────────────────────────
+function refreshCard() {
+  $('cd-saldo').textContent = '$' + fmt(S.balance);
+  $('vc-num').textContent = S.cardRevealed ? S.cardNum : '•••• •••• •••• ••••';
+  $('vc-exp').textContent = S.cardRevealed ? S.cardExp : '••/••';
+  $('vc-holder').textContent = S.cardHolder;
+}
+function revealCard() {
+  S.cardRevealed = !S.cardRevealed;
+  refreshCard();
+}
+function freezeCard() {
+  S.cardFrozen = !S.cardFrozen;
+  $('freeze-icon').textContent = S.cardFrozen ? '▶' : '❄';
+  $('freeze-lbl').textContent = S.cardFrozen ? 'Descongelar' : 'Congelar';
+  alert(S.cardFrozen ? '❄ Tarjeta congelada — no se pueden realizar pagos' : '✓ Tarjeta activa nuevamente');
+}
+
+// ── HISTORY ───────────────────────────
+function renderHist() {
+  const total = S.cobros.reduce((s,t) => s+t.amt, 0);
+  const cnt = S.cobros.length;
+  $('m-total').textContent = '$' + fmt(total);
+  $('m-cnt').textContent = cnt + (cnt===1?' cobro':' cobros') + ' aprobados';
+  $('m-avg').textContent = cnt > 0 ? '$' + fmt(total/cnt) : '—';
+  $('hist-sub').textContent = `Sesión · ${cnt} transacciones · sandbox`;
+  const list = $('hist-list');
+  if (!S.cobros.length) {
+    list.innerHTML = '<div class="empty-state"><span style="font-size:28px;">◎</span><span>Sin transacciones aún.</span></div>';
+    return;
+  }
+  list.innerHTML = S.cobros.map(t => `
+    <div class="txn-row">
+      <div class="txn-ico">⬡</div>
+      <div class="txn-inf"><div class="txn-nm">${t.card}</div><div class="txn-mt">${t.ds} ${t.ts} · ${t.auth}${t.desc?' · '+t.desc:''}</div></div>
+      <div class="txn-am pos">+$${fmt(t.amt)}</div>
+    </div>`).join('');
+}
+
+updateDisp();
+</script>
+</body>
+</html>
